@@ -1,6 +1,6 @@
 {
   "name": "next-setup",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool to create Next.js projects with shadcn/ui, custom animations, and logger",
   "main": "index.js",
   "bin": {
