@@ -45,32 +45,51 @@ async function createProject(projectName, options) {
     const templateDir = path.join(__dirname);
     const projectDir = path.join(currentDir, projectName);
 
-    // Create Next.js project
+    // Display the directory we're working in
+    spinner.info(`Working in directory: ${chalk.blue(currentDir)}`);
+    spinner.info(`Creating project in: ${chalk.blue(projectDir)}`);
     spinner.text = 'Creating Next.js project...';
     
     // Create Next.js app with chosen package manager
-    if (packageManager === 'pnpm') {
-      execSync(`pnpm create next-app ${projectName} --ts --tailwind --app --import-alias="@/*" --use-pnpm`, { stdio: 'ignore' });
-    } else if (packageManager === 'yarn') {
-      execSync(`yarn create next-app ${projectName} --ts --tailwind --app --import-alias="@/*" --use-yarn`, { stdio: 'ignore' });
-    } else {
-      execSync(`npx create-next-app ${projectName} --ts --tailwind --app --import-alias="@/*"`, { stdio: 'ignore' });
+    try {
+      if (packageManager === 'pnpm') {
+        execSync(`pnpm create next-app ${projectName} --ts --tailwind --app --import-alias="@/*" --use-pnpm`, { stdio: 'inherit' });
+      } else if (packageManager === 'yarn') {
+        execSync(`yarn create next-app ${projectName} --ts --tailwind --app --import-alias="@/*" --use-yarn`, { stdio: 'inherit' });
+      } else {
+        execSync(`npx create-next-app ${projectName} --ts --tailwind --app --import-alias="@/*"`, { stdio: 'inherit' });
+      }
+    } catch (error) {
+      spinner.fail(`Failed to create Next.js project: ${chalk.red(error.message)}`);
+      throw new Error(`Failed to create Next.js project: ${error.message}`);
+    }
+
+    // Check if the project directory was created
+    if (!fs.existsSync(projectDir)) {
+      spinner.fail(`Project directory was not created at: ${chalk.red(projectDir)}`);
+      throw new Error(`Project directory ${projectDir} was not created. Please check error output above.`);
     }
 
     // Change to project directory
-    process.chdir(projectDir);
+    try {
+      process.chdir(projectDir);
+      spinner.succeed(`Changed to project directory: ${chalk.green(projectDir)}`);
+    } catch (error) {
+      spinner.fail(`Failed to change to project directory: ${chalk.red(projectDir)}`);
+      throw error;
+    }
 
     // Install shadcn
     spinner.text = 'Installing shadcn components...';
     if (packageManager === 'pnpm') {
-      execSync('pnpm add -D @shadcn/ui', { stdio: 'ignore' });
-      execSync('pnpm dlx shadcn-ui@latest init --yes --style=new-york --base-color=zinc', { stdio: 'ignore' });
+      execSync('pnpm add -D @shadcn/ui', { stdio: 'inherit' });
+      execSync('pnpm dlx shadcn@latest init --yes', { stdio: 'inherit' });
     } else if (packageManager === 'yarn') {
-      execSync('yarn add -D @shadcn/ui', { stdio: 'ignore' });
-      execSync('npx shadcn-ui@latest init --yes --style=new-york --base-color=zinc', { stdio: 'ignore' });
+      execSync('yarn add -D @shadcn/ui', { stdio: 'inherit' });
+      execSync('npx shadcn@latest init --yes', { stdio: 'inherit' });
     } else {
-      execSync('npm install -D @shadcn/ui', { stdio: 'ignore' });
-      execSync('npx shadcn-ui@latest init --yes --style=new-york --base-color=zinc', { stdio: 'ignore' });
+      execSync('npm install -D @shadcn/ui', { stdio: 'inherit' });
+      execSync('npx shadcn@latest init --yes', { stdio: 'inherit' });
     }
 
     // Install animation dependencies
@@ -112,8 +131,54 @@ async function createProject(projectName, options) {
 
     // Copy template files
     spinner.text = 'Copying template files...';
-    fs.copySync(path.join(templateDir, 'animations'), path.join(projectDir, 'src/components/animations'));
-    fs.copySync(path.join(templateDir, 'lib'), path.join(projectDir, 'src/lib'));
+    const animationsDir = path.join(templateDir, 'animations');
+    const libDir = path.join(templateDir, 'lib');
+
+    // Check if template directories exist before copying
+    if (fs.existsSync(animationsDir) && fs.readdirSync(animationsDir).length > 0) {
+      fs.copySync(animationsDir, path.join(projectDir, 'src/components/animations'));
+      spinner.succeed('Copied animation components');
+    } else {
+      spinner.warn('Animation templates not found or empty. Creating basic structure only.');
+      // Create basic animation files if templates are missing
+      fs.writeFileSync(path.join(projectDir, 'src/components/animations/blur-fade.tsx'), `"use client";
+
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+interface BlurFadeProps {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+  duration?: number;
+}
+
+export function BlurFade({
+  children,
+  className,
+  delay = 0,
+  duration = 0.5,
+}: BlurFadeProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, filter: "blur(10px)" }}
+      animate={{ opacity: 1, filter: "blur(0px)" }}
+      transition={{ delay, duration }}
+      className={cn(className)}
+    >
+      {children}
+    </motion.div>
+  );
+}
+`);
+    }
+
+    if (fs.existsSync(libDir)) {
+      fs.copySync(libDir, path.join(projectDir, 'src/lib'));
+      spinner.succeed('Copied utility files');
+    } else {
+      spinner.warn('Utility templates not found. Creating basic files only.');
+    }
 
     // Create .prettierrc
     fs.writeFileSync(path.join(projectDir, '.prettierrc'), `{
@@ -137,15 +202,46 @@ export function cn(...inputs: ClassValue[]) {
 
     // Install shadcn components
     spinner.text = 'Installing common shadcn components...';
-    const shadcnComponents = ['button', 'card', 'dialog', 'separator'];
+    const shadcnComponents = [
+      'button',
+      'card',
+      'input',
+      'form',
+      'select',
+      'dialog',
+      'dropdown-menu',
+      'sonner'
+    ];
+    
+    // List of all available shadcn components for reference
+    const allShadcnComponents = [
+      'accordion', 'alert', 'alert-dialog', 'aspect-ratio', 'avatar',
+      'badge', 'breadcrumb', 'button', 'calendar', 'card', 'carousel',
+      'checkbox', 'collapsible', 'command', 'context-menu', 'data-table',
+      'date-picker', 'dialog', 'dropdown-menu', 'form', 'hover-card',
+      'input', 'label', 'menubar', 'navigation-menu', 'pagination',
+      'popover', 'progress', 'radio-group', 'scroll-area', 'select',
+      'separator', 'sheet', 'skeleton', 'slider', 'sonner', 'switch',
+      'table', 'tabs', 'textarea', 'toast', 'toggle', 'tooltip'
+    ];
+    
+    const installedComponents = [];
+    const failedComponents = [];
     
     for (const component of shadcnComponents) {
-      if (packageManager === 'pnpm') {
-        execSync(`pnpm dlx shadcn-ui@latest add ${component}`, { stdio: 'ignore' });
-      } else if (packageManager === 'yarn') {
-        execSync(`npx shadcn-ui@latest add ${component}`, { stdio: 'ignore' });
-      } else {
-        execSync(`npx shadcn-ui@latest add ${component}`, { stdio: 'ignore' });
+      try {
+        spinner.text = `Installing shadcn component: ${component}...`;
+        if (packageManager === 'pnpm') {
+          execSync(`pnpm dlx shadcn@latest add ${component} --yes`, { stdio: 'inherit' });
+        } else if (packageManager === 'yarn') {
+          execSync(`npx shadcn@latest add ${component} --yes`, { stdio: 'inherit' });
+        } else {
+          execSync(`npx shadcn@latest add ${component} --yes`, { stdio: 'inherit' });
+        }
+        installedComponents.push(component);
+      } catch (error) {
+        spinner.warn(`Failed to install component: ${component}`);
+        failedComponents.push(component);
       }
     }
 
@@ -196,11 +292,25 @@ This project was set up with next-setup and includes:
 - \`${packageManager}${packageManager === 'npm' ? ' run' : ''} start\`: Start the production server
 - \`${packageManager}${packageManager === 'npm' ? ' run' : ''} lint\`: Run ESLint
 
-## Installing Additional shadcn Components
+## Installed shadcn/ui Components
+
+The following shadcn/ui components have been pre-installed:
+${installedComponents.map(comp => `- ${comp}`).join('\n')}
+
+${failedComponents.length > 0 ? `\n> Note: The following components failed to install and may need to be installed manually: ${failedComponents.join(', ')}\n` : ''}
+
+## Installing Additional shadcn/ui Components
 
 \`\`\`bash
-${packageManager === 'pnpm' ? 'pnpm dlx' : 'npx'} shadcn-ui@latest add [component-name]
+${packageManager === 'pnpm' ? 'pnpm dlx' : 'npx'} shadcn@latest add [component-name]
 \`\`\`
+
+## Available shadcn/ui Components
+
+You can install any of these additional components:
+${allShadcnComponents.filter(comp => !installedComponents.includes(comp)).map(comp => `- ${comp}`).join('\n')}
+
+Visit [shadcn/ui documentation](https://ui.shadcn.com/docs/components) for more details.
 `);
     }
 
@@ -209,7 +319,19 @@ ${packageManager === 'pnpm' ? 'pnpm dlx' : 'npx'} shadcn-ui@latest add [componen
     console.log('\nTo get started:');
     console.log(chalk.yellow(`  cd ${projectName}`));
     console.log(chalk.yellow(`  ${packageManager}${packageManager === 'npm' ? ' run' : ''} dev`));
+    
+    // Display information about shadcn/ui components
+    console.log(`\n${chalk.magenta('Installed shadcn/ui components:')}`);
+    console.log(installedComponents.map(comp => `  - ${comp}`).join('\n'));
+    
+    if (failedComponents.length > 0) {
+      console.log(`\n${chalk.yellow('Failed to install these components:')}`);
+      console.log(failedComponents.map(comp => `  - ${comp}`).join('\n'));
+    }
+    
     console.log(`\nRefer to ${chalk.blue('project-info.md')} for more information about your project`);
+    console.log(`\nTo install more shadcn/ui components, run:`);
+    console.log(chalk.yellow(`  ${packageManager === 'pnpm' ? 'pnpm dlx' : 'npx'} shadcn@latest add [component-name]`));
   } catch (error) {
     spinner.fail('Setup failed');
     throw error;
