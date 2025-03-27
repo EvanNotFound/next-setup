@@ -211,7 +211,14 @@ export function cn(...inputs: ClassValue[]) {
       'select',
       'dialog',
       'dropdown-menu',
-      'sonner'
+      'sonner',
+      'sheet',
+      'skeleton',
+      'switch',
+      'tabs',
+      'textarea',
+      'toggle',
+      'tooltip'
     ];
     
     // List of all available shadcn components for reference
