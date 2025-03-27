@@ -1,0 +1,14 @@
+# Git files
+.git
+.gitignore
+
+# Node modules
+node_modules
+
+# Development files
+.vscode
+.idea
+.DS_Store
+
+# Script file (no longer needed since we're using index.js)
+setup.sh 
