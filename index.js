@@ -185,7 +185,8 @@ export function BlurFade({
   "tabWidth": 2,
   "semi": true,
   "singleQuote": false,
-  "trailingComma": "es5"
+  "trailingComma": "es5",
+  "plugins": ["prettier-plugin-tailwindcss"]
 }
 `);
 
